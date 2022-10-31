@@ -30,14 +30,14 @@ class P_controller:
 		#self.robot.state_des.add_destination(x=0,y=100,theta=0)   		#goal point 2 BOT MIDDLE
 		#self.robot.state_des.add_destination(x=150,y=-100,theta=0)   	#goal point 3 BOT RIGHT
 		#------------square----
-		self.robot.state_des.add_destination(x=160,y=0,theta=-math.pi/2)    	#goal point 1 TOP RIGHT  (theta in radians)
-		self.robot.state_des.add_destination(x=0,y=-160,theta=-math.pi)   	#goal point 2 BOT RIGHT
-		self.robot.state_des.add_destination(x=-160,y=0,theta=math.pi/2)   	#goal point 3 BOT LEFT
-		self.robot.state_des.add_destination(x=0,y=160,theta=0)     	#goal point 4 TOP LEFT
+		#self.robot.state_des.add_destination(x=160,y=0,theta=-math.pi/2)    	#goal point 1 TOP RIGHT  (theta in radians)
+		#self.robot.state_des.add_destination(x=0,y=-160,theta=-math.pi)   	#goal point 2 BOT RIGHT
+		#self.robot.state_des.add_destination(x=-160,y=0,theta=math.pi/2)   	#goal point 3 BOT LEFT
+		#self.robot.state_des.add_destination(x=0,y=160,theta=0)     	#goal point 4 TOP LEFT
 		#------------square----
-		#self.robot.state_des.add_destination(x=10,y=10,theta=math.pi/8) #goal point 1
-		#self.robot.state_des.add_destination(x=20,y=20,theta=-math.pi/4) #goal point 2
-		#self.robot.state_des.add_destination(x=20,y=30,theta=math.pi/2) #goal point 3
+		self.robot.state_des.add_destination(x=10,y=10,theta=math.pi/8) #goal point 1
+		self.robot.state_des.add_destination(x=20,y=20,theta=-math.pi/4) #goal point 2
+		self.robot.state_des.add_destination(x=20,y=30,theta=math.pi/2) #goal point 3
 
 
 

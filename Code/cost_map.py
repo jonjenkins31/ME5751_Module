@@ -13,7 +13,7 @@ class cost_map:
 		self.map_width = int(self.graphics.environment.width*self.graphics.scale)
 		self.map_height = int(self.graphics.environment.height*self.graphics.scale)
 		try:
-			self.load_map(map = "maps/testmap.png") #load map
+			self.load_map(map = "maps/testmap_maze2.png") #load map
 		except:
 			self.graphics.show_map_button.configure(state="disabled")
 			print ("no map loaded") #if fail to find the map png
@@ -27,7 +27,7 @@ class cost_map:
 	#load occupancy grid into self.map
 	#self.map is a numpy 2d array
 	#initialize self.costmap, a numpy 2d array, same as self.map
-	def load_map(self,map="maps/testmap.png"):
+	def load_map(self,map="maps/testmap_maze2.png"):
 		self.map_img = Image.open(map).convert('L')
 		self.map_img = self.map_img.resize((int(self.map_width),int(self.map_height)),Image.ANTIALIAS)
 		# self.graphics.draw_map(map_img=self.map_img)

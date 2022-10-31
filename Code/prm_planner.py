@@ -166,6 +166,7 @@ class path_planner:
 		if(self.check_vicinity(self.goal_node.map_i,self.goal_node.map_j,ri,rj,2.0)):
 			print ("We hit goal!")
 
+		self.path.save_path(file_name="Log\prm_path.csv")
 
 
 # bresenham algorithm for line generation on grid map
