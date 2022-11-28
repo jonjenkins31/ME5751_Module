@@ -3,6 +3,8 @@ import numpy as np
 import math
 import random
 from PIL import Image, ImageTk
+from queue import Queue
+from queue import PriorityQueue
 
 from Path import *
 # from Queue import Queue
@@ -43,20 +45,21 @@ class path_planner:
 		# self.graphics.scale = 400 #half pixel number on canvas, the map should be 800 x 800
 		# self.graphics.environment.robots[0].set_bot_size(body_cm = 2*self.inflation_radius)
 		#self.graphics.environment.width/height = 2
-
 		self.costmap = self.graphics.map
 		self.map_width = self.costmap.map_width
 		self.map_height = self.costmap.map_height
-
 		self.pTree=prm_tree()
-
 		self._init_path_img()
 		self.path = Path()
 		
-		self.set_start(world_x = .0, world_y = .0)
-		self.set_goal(world_x = 100.0, world_y = 200.0, world_theta = .0)
-
+  		#------------SET GOAL POINT -------------------------------------------------------------------
+		# Specify Starting Location (0,0)
+		self.set_start(world_x = 0, world_y = 0)
+		#Set Goal Location in World coordinate ...  Location will be updated to Map coordinate system automaticly
+		self.set_goal(world_x =166.0, world_y =-25.0, world_theta = .0)
+		#Run Path Planner Function 
 		self.plan_path()
+		# Show Calculated Path
 		self._show_path()
 
 	def set_start(self, world_x = 0, world_y = 0, world_theta = 0):
@@ -129,44 +132,135 @@ class path_planner:
 	def plan_path(self):
 		#this is the function you are going to work on
 
-		###############################################################
-		#Below is an example that how you can random a point and check if it hits any obstacle from start point
+		#------------Main Code-------------------------------------------------------------------
 
-		ri = random.randint(0,self.map_width)
-		rj = random.randint(0,self.map_height) # Let's make a random number!
-
-
-		points = bresenham(self.start_node.map_i,self.start_node.map_j,ri,rj)
 		
-		#check if straightline from start point to randomed (ri, rj) hits any obstacle
-		hit_obstacle = False
-		for p in points:
-			if(self.costmap.costmap[p[0]][p[1]]) < -1: #depends on how you set the value of obstacle
-				hit_obstacle = True
-				# print ("From %d, %d to %d, %d we hit obstalce"%(self.start_node.map_i,self.start_node.map_j,ri,rj))
+		print("-----------")							#  print line to  identify start in terminal
+
+
+		#STEP 1:  Setup/Variables/Arrays
+		#Grids
+		grid= self.costmap.costmap   												# EMPTY = 0 / OCCUPIED = 1000 /Saftey Zone = 500+ / Grids = 500 <--> 0 
+		self.row_length = len(grid)                              					# Length of the rows
+		self.col_length = len(grid[0])                           					# Length of the columns
+		#Arrays
+		start =(self.start_state_map.map_i,self.start_state_map.map_j) 				# Start position array
+		goal =(self.goal_state_map.map_i,self.goal_state_map.map_j)					# Goal position array
+		#variables
+		prm_loop_counter=0															# Counter to idenify the amount of iterations conducted
+		path_found=False															# Path Found logic 
+		random_node_radius = 75
+		points_all=[]
+		all_path_found=False
+		#Queues and Dictionary
+		node_list=[]												# List of nodes  formed
+		node_list.append(start)										# Add Start point into the  List of nodes  formed
+		node_edge = dict()											# Stores the path to each grid
+		node_edge[start] = None										# Assign parent to desired node
+
+
+
+		#STEP 2 PRM ALGORITHM LOOP
+		#Perform Path Plan search                  
+		while  path_found == False:								# loop as long as a list of neighbors to solve for exists
+			
+			# STEP 2A RANDOMLY SELECT NODE C  FROM LIST
+			random_node_c = random.choice(node_list)  			# Randomly select a node c from the list of nodes
+			(rx,ry) = random_node_c       						# get the node position  from the current node                 
+			
+			# STEP 2B RANDOMLY GENERATE NEW NODE C' FROM C 
+			random_node_c_prime_valid = False					# Reset the logic bit to false
+			ri = random.randint(rx-random_node_radius,rx+random_node_radius)			# Random number i variable
+			rj = random.randint(ry-random_node_radius,ry+random_node_radius )			# Random number j variable
+			random_node_c_prime = (ri,rj)						# save current grid  position to be used as the new node position
+			if 0 <= ri < self.row_length and 0 <= rj < self.col_length and  grid[random_node_c] < 500 and (ri,rj) not in node_list and manhattan(random_node_c, random_node_c_prime)>=random_node_radius/2:                	# Make sure random node is in a unoccupied space
+				random_node_c_prime_valid = True
+			if(self.check_vicinity(self.goal_node.map_i,self.goal_node.map_j,ri,rj,2.0)):			# define check_vicinity function and decide if you have reached the goal
+				print ("We hit goal!")
+				random_node_c_prime_valid = False
+
+
+			# STEP 2C GENERATE EDGE E FROM NODE C' FROM C  - MAKE SURE IT IS COLLISION -FREE
+			if  random_node_c_prime_valid == True:								# Perferm only if new node is valid
+				points = bresenham(rx,ry,ri,rj)									# Generate pint line between nodes
+				hit_obstacle = False											# Reset Hit obstacle variable
+				for p in points:												# check if straightline from the two nodes hits any obstacle
+					if(self.costmap.costmap[p[0]][p[1]]) >= 500: 				# path is not clear
+						hit_obstacle = True
+						break
+				if(hit_obstacle==False):										# Path is clear
+					points_all = points_all + points
+					node_list.append(random_node_c_prime)						# Add new node to list of nodes
+					node_edge[random_node_c_prime] = random_node_c				# store the parent node of the new node .. later used for path reconstruction
+
+
+			# STEP 2D GENERATE EDGE BETWEEN NODE C' TO GOAL - MAKE SURE IT IS COLLISION FREE
+			if  random_node_c_prime_valid == True and hit_obstacle==False:									# Check if path to goal can be found 
+					points = bresenham(ri,rj,self.goal_state_map.map_i,self.goal_state_map.map_j)			# Generate pint line new node and goal node
+					hit_obstacle = False											# Reset Hit obstacle variable
+					for p in points:												# check if straightline from the two nodes hits any obstacle
+						if(self.costmap.costmap[p[0]][p[1]]) >= 500:				# Path is not clear
+							hit_obstacle = True
+							break
+					if(hit_obstacle==False):								# path is clear .. path to goal found
+						path_found=True										# Variable to be used to determain what is done after loop... Either generate path if found or inform user no path possible
+						node_edge[goal] = random_node_c_prime				# store the parent node of the new node .. later used for path reconstruction
+						print ("Path To Goal Found")
+
+			# STEP 2E OPTIMALSATION GENERATE EDGE E FROM NODE C' FROM C  - MAKE SURE IT IS COLLISION -FREE
+			if  random_node_c_prime_valid == True:														# Perferm only if new node is valid
+				points = bresenham(self.start_state_map.map_i,self.start_state_map.map_j,ri,rj)			# Generate point line new node and goal node
+				hit_obstacle = False										# check if straightline from start point to randomed (ri, rj) hits any obstacle
+				for p in points:											# check if straightline from the two nodes hits any obstacle
+					if(self.costmap.costmap[p[0]][p[1]]) >= 500: 			# depends on how you set the value of obstacle
+						hit_obstacle = True
+						break
+				if(hit_obstacle==False):								# We didn't hit an obstacle
+					node_edge[random_node_c_prime] = start			# determine if new node can directly go to start position... if so skip all previous nodes  and start a new branch.... later used for path reconstruction
+		
+			prm_loop_counter = prm_loop_counter+1					# Loop Counter
+			#STOPPING CRITERIA
+			if prm_loop_counter >= 10000:   						# Stop condition by loop counter 
+				path_found=False									# Variable to be used to determain what is done after loop... Either generate path if found or inform user no path possible
 				break
+			elif prm_loop_counter == 2000 :
+				print ("2000 iterations completed")
+			elif prm_loop_counter == 10000:
+				print ("5000 iterations completed")
+			elif prm_loop_counter == 50000:
+				print ("10000 iterations completed")
 
-		#We didn't hit an obstacle
-		if(hit_obstacle==False):
-			random_node = prm_node(ri,rj)
+		#SET 3   Generate output path
+		# Output... Depends if path was found or not
+		if path_found==True:
+			print ("Constructing Found path..... ")
+			points = reconstruct_path(node_edge, start, goal)							# Run function to generate path points from node edge list
+			for p in points:															# check if straightline from the two nodes hits any obstacle
+				self.path.add_pose(Pose(map_i=p[0],map_j=p[1],theta=0)) 				# Export pathpoints to program
+			self.path.save_path(file_name="Log\prm_path.csv")							# CHECK OUTPUT DURING TESTING
+		if all_path_found==True:
+			for p in points_all:															# check if straightline from the two nodes hits any obstacle
+				self.path.add_pose(Pose(map_i=p[0],map_j=p[1],theta=0)) 				# Export pathpoints to program
+			self.path.save_path(file_name="Log\prm_path.csv")	
+		if path_found==False:
+			print("Iteration Limit Reached: NO PATH TO GOAL FOUND")						# Output notification that no path was found 
 
-			self.pTree.add_nodes(random_node)
-			self.pTree.add_edges(self.start_node,random_node)#add an edge from start node to random node
-		##############################################################
+		print("Number of Iterations")												# CHECK OUTPUT DURING TESTING
+		print(prm_loop_counter)														# CHECK OUTPUT DURING TESTING
+		print("Number of nodes")												# CHECK OUTPUT DURING TESTING
+		print(len(node_list) )				
+		#print ("node list")
+		#print (node_list)
+		#print ("p_raw")
+		#print ("random_node_c")
+		#print (random_node_c)
+ 		#------------Main PController Code-------------------------------------------------------------------
 
 
-		#If you decide the path between start_node and random_node should be within your final path, you must do:
-		points = bresenham(self.start_node.map_i,self.start_node.map_j,random_node.map_i,random_node.map_j)
-		for p in points:
-			self.path.add_pose(Pose(map_i=p[0],map_j=p[1],theta=0))
 
-		#It is almost impossible for you to random a node that is coincident with goal node
-		#So everytime you randomed ri and rj, you should also check if it is within a vicinity of goal
-		#define check_vicinity function and decide if you have reached the goal
-		if(self.check_vicinity(self.goal_node.map_i,self.goal_node.map_j,ri,rj,2.0)):
-			print ("We hit goal!")
 
-		self.path.save_path(file_name="Log\prm_path.csv")
+
+
 
 
 # bresenham algorithm for line generation on grid map
@@ -215,3 +309,28 @@ def bresenham(x1, y1, x2, y2):
 
     # print points
     return points
+
+
+#------------ ADDITONAL CODE-------------------------------------------------------------------
+
+def reconstruct_path(node_edge, start, goal):
+    path = []														# add frist path point as goal loaction
+    current = goal															# Start the path reconstruction from the goal location
+    N1 = current															# Start the path reconstruction from the goal location
+    while current != start:													# Index through the Came_from list untill u get to the start location
+        current = node_edge[current]										# get the stored  [grid -1]  location that was saved in the Came_From dictiionary
+        N2 = current										# get the stored  [grid -1]  location that was saved in the Came_From dictiionary
+        (N1_X,N1_Y) = N1   
+        (N2_X,N2_Y) = N2   
+        node_path = bresenham(N1_X,N1_Y,N2_X,N2_Y)
+        path=path+node_path
+        N1=N2
+    path.reverse()															# reverse the array so that u start from the starting location instead of the goal location
+
+    return path
+
+def manhattan(goal,next):
+    (x1, y1) = goal
+    (x2, y2) = next
+    manhattan= abs(x1 - x2) + abs(y1 - y2)									# generate the manhattan distance value from goal to current position
+    return manhattan

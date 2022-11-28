@@ -7,8 +7,8 @@ from cost_map import *
 
 #Swtich these two lines to choose planner
 
-from path_planner import *
-#from prm_planner import *
+#from path_planner import *
+from prm_planner import *
 
 class E160_graphics:
 	def __init__(self, environment):

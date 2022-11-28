@@ -25,10 +25,11 @@ class path_planner:
 		self.map_height = self.costmap.map_height
 		self._init_path_img()
 		self.path = Path()
+		
 		# Specify Starting Location (0,0)
 		self.set_start(world_x = 0, world_y = 0)
 		#Set Goal Location in World coordinate ...  Location will be updated to Map coordinate system automaticly
-		self.set_goal(world_x = 0.0, world_y = -230.0, world_theta = .0)
+		self.set_goal(world_x = 160.0, world_y = -107.0, world_theta = .0)
 		#Run Path Planner Function 
 		self.plan_path()
 		# Show Calculated Path
@@ -121,6 +122,9 @@ class path_planner:
 		bfs_current_queue =[]                                        			# Take the list of Islands as the first bfs  queue
 		bfs_current_queue.append(start)                                        # Take the list of Islands as the first bfs  queue
 		direction = ((-1, 0), (0, -1), (1, 0), (0, 1))                              # Left, bottom, Right, Right
+		points_all=[]
+		all_path_found=False
+
 		#variables
 		distance = 1                                                                # Node Value 
 		nodes_search_counter=0
@@ -176,7 +180,8 @@ class path_planner:
 						priority = new_cost																# Copies cost to be used in priority queue managment... Lowest cost = highest priority
 						frontier.put((priority,next)) 													# Store the node to the list of expanding nodes ... organized by priority 
 						came_from[next] = current														# store the next node with the name of the current node used to get their... later used for path reconstruction
-	
+						points_all.append(next)
+
 		
 		#SET 4   Generate output path
 		# Output... Depends if path was found or not
@@ -191,6 +196,11 @@ class path_planner:
 				self.path.add_pose(Pose(map_i=p[0],map_j=p[1],theta=0)) #theta is wrong			# Export pathpoints to program
 			self.path.save_path(file_name="Log\path.csv")										#export calculated path to file
 						
+
+		if all_path_found==True:
+			for p in points_all:															# check if straightline from the two nodes hits any obstacle
+				self.path.add_pose(Pose(map_i=p[0],map_j=p[1],theta=0)) 				# Export pathpoints to program
+			self.path.save_path(file_name="Log\prm_path.csv")	
 
 		if path_found==False:
 			print("NO PATH TO GOAL FOUND")							# CHECK OUTPUT DURING TESTING
