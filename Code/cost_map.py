@@ -13,7 +13,8 @@ class cost_map:
 		self.map_width = int(self.graphics.environment.width*self.graphics.scale)
 		self.map_height = int(self.graphics.environment.height*self.graphics.scale)
 		try:
-			self.load_map(map = "maps/testmap_maze.png") #load map
+			#self.load_map(map = "maps/street_map.png") #load map
+			self.load_map(map = "maps/street_map.png") #load map
 		except:
 			self.graphics.show_map_button.configure(state="disabled")
 			print ("no map loaded") #if fail to find the map png
@@ -27,7 +28,7 @@ class cost_map:
 	#load occupancy grid into self.map
 	#self.map is a numpy 2d array
 	#initialize self.costmap, a numpy 2d array, same as self.map
-	def load_map(self,map="maps/testmap_maze.png"):
+	def load_map(self,map="maps/street_map.png"):
 		self.map_img = Image.open(map).convert('L')
 		self.map_img = self.map_img.resize((int(self.map_width),int(self.map_height)),Image.ANTIALIAS)
 		# self.graphics.draw_map(map_img=self.map_img)
@@ -140,8 +141,8 @@ class cost_map:
 		bushfire_costmap=Bushfire        # cost map ---- THIS MATRIX REPRESENTS THE COST MAP --- closer to object the higher the cost
 		max_cost = 1000									# Specify the desired "cost" for an occupied space
 		max_cost_saftey_zone = 800						# Specify the desired starting "cost" for any open space within the saftey zone of a occipied space
-		min_cost_saftey_zone = 500 						# Specify the desired MINIMUM "cost" for any open space within the saftey zone of a occipied space
-		saftey_zone_distance = 15						# Specify the desired saftey zone distance from known occupied space
+		min_cost_saftey_zone = 800 						# Specify the desired MINIMUM "cost" for any open space within the saftey zone of a occipied space
+		saftey_zone_distance = 18						# Specify the desired saftey zone distance from known occupied space
 		cost_rate_safty=(min_cost_saftey_zone-max_cost_saftey_zone)/(saftey_zone_distance) 			# Specify the rate of cost decrease for each space in the saftey zone 
 		cost_rate = 15																				# Specify the rate of cost decrease for each space after the saftey zone --- cost will incrementaly decrease till cost is 0
 		# Scan costmap Top Down -- LEFT to RIGHT

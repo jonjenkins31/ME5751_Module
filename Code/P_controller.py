@@ -11,34 +11,26 @@ class P_controller:
 
 	def __init__(self, robot, logging = True):
 		self.robot = robot  # do not delete this line
-		self.kp = 3  # k_rho
-		self.ka = 8  # k_alpha
+		self.kp = 3  # k_rho (5) (1) (4)
+		self.ka = 8  # k_alpha(12) (9)(-1)
 		self.kb = -1.5  # k_beta
+		self.finish = 1
 		self.logging = logging
-
 		if(logging == True):
 			self.robot.make_headers(['pos_X','posY','posZ','vix','viy','wi','vr','wr'])
-
 		self.set_goal_points()
-
+  
+		
+  
 	#Edit goal point list below, if you click a point using mouse, the points programmed
 	#will be washed out
 	def set_goal_points(self):
-# here is the example of destination code
+		# here is the example of destination code
   		#------------Triangle----
 		#self.robot.state_des.add_destination(x=-150,y=-100,theta=0)    	#goal point 1 TOP LEFT
 		#self.robot.state_des.add_destination(x=0,y=100,theta=0)   		#goal point 2 BOT MIDDLE
 		#self.robot.state_des.add_destination(x=150,y=-100,theta=0)   	#goal point 3 BOT RIGHT
-		#------------square----
-		#self.robot.state_des.add_destination(x=160,y=0,theta=-math.pi/2)    	#goal point 1 TOP RIGHT  (theta in radians)
-		#self.robot.state_des.add_destination(x=0,y=-160,theta=-math.pi)   	#goal point 2 BOT RIGHT
-		#self.robot.state_des.add_destination(x=-160,y=0,theta=math.pi/2)   	#goal point 3 BOT LEFT
-		#self.robot.state_des.add_destination(x=0,y=160,theta=0)     	#goal point 4 TOP LEFT
-		#------------square----
-		self.robot.state_des.add_destination(x=10,y=10,theta=math.pi/8) #goal point 1
-		self.robot.state_des.add_destination(x=20,y=20,theta=-math.pi/4) #goal point 2
-		self.robot.state_des.add_destination(x=20,y=30,theta=math.pi/2) #goal point 3
-
+		print("")
 
 
 
@@ -55,93 +47,160 @@ class P_controller:
 		(c_posX, c_posY, c_theta) = self.robot.state.get_pos_state()  # get current position configuration
 		(c_vix, c_viy, c_wi) = self.robot.state.get_global_vel_state() #get current velocity configuration, in the global frame
 		(c_v, c_w) = self.robot.state.get_local_vel_state() #get current local velocity configuration
+		deltaX = (d_posX-c_posX)
+		deltaY = (d_posY-c_posY)
+		deltaA = (d_theta-c_theta)
 
 
-		
-		#------------Not currently used-------------------------------------------------------------------
-		#STEP 2:  Calculate robot pos in terms of Goal reference position 
-  		#GLOBAL TO ROBOT TRANSFORM
-		RobotH =np.array([[math.cos(c_theta),-math.sin(c_theta),0,c_posX],
-  				[math.sin(c_theta),math.cos(c_theta),0,c_posY],
-      			[0,0,1,0],
-          		[0,0,0,1]])  #  Translation with x and y Rotate z-axis (delta) TxyRz
-  		#GLOBAL TO GO TRANSFORM
-		GoH =np.array([[math.cos(d_theta),-math.sin(d_theta),0,d_posX],
-  				[math.sin(d_theta),math.cos(d_theta),0,d_posY],
-      			[0,0,1,0],
-          		[0,0,0,1]]  )  #  Translation with x and y Rotate z-axis (delta) TxyRz
-		#Globe frame TO GO frame  TRANSFORM
-		invGoH = np.linalg.inv(GoH) 
-		P_globe_robot= np.array([[c_posX],[c_posY],[0],[1]]) 		# Robot location with respects of robot global frame
-		P_go_robot= invGoH.dot(P_globe_robot) 						# Robot location with respects to go frame
-		dx_go_robot= P_go_robot[0][0]						 #  First element of first row
-		dY_go_robot= P_go_robot[1][0]						 #  First element of second row
-    	#Globe frame TO Robot frame  TRANSFORM
-		invRobotH = np.linalg.inv(RobotH) 
-		P_globe_go= np.array([[d_posX],[d_posY],[0],[1]]) 		# Robot location with respects of robot global frame
-		P_robot_go= invRobotH.dot(P_globe_go) 				# Robot location with respects to go frame
-		dx_robot_go= P_robot_go[0][0]						 #  First element of first row
-		dY_robot_go= P_robot_go[1][0]						 #  First element of second row
-		#------------------------------------------------------------------------------
-
- 		 #STEP 3:  Calculate the rho, alpha, and beta of the system at the current instance
+ 		 #STEP 2:  Calculate the rho, alpha, and beta of the system at the current instance
 		# Most of your program should be here, compute rho, alpha and beta using d_pos and c_pos
-		rho=math.sqrt((d_posX-c_posX)**2+(d_posY-c_posY)**2)
-		omega=math.atan2(d_posY-c_posY,d_posX-c_posX)
+		rho=math.sqrt((deltaX)**2+(deltaY)**2)
+		omega=math.atan2(deltaY,deltaX)
 		alpha=omega-c_theta
-		#rho= math.sqrt((dx_robot_go)**2+(dY_robot_go)**2) 		# distance between robot's current location and the desired location---- in robot frame
-		#alpha= math.atan2((dY_robot_go),(dx_robot_go))         	# angle between robot's XR axis and the rho vector---- in robot frame
-		#beta= -(d_theta-c_theta)- alpha      	# angle between rho vector and the Xg axis---- in robot frame
-		
-  		#STEP 4:  Regulate the rho, alpha, and beta of the system at the current instance. limit within -/+ pi/2
-        # Determine if forward or backwards method is to be used
-		if (- math.pi/2 < alpha ) and (alpha <= math.pi/2):
-			beta = d_theta - omega # beta=omega-d_theta
-			c_v= self.kp*rho
-		else:
-			omega=math.atan2(d_posY-c_posY,c_posX-d_posX)
-			beta= -(omega + d_theta)  # beta= omega + d_theta
-			alpha =  c_theta + beta # - c_theta - betas
-			c_v= -self.kp*rho
-		
+		'''''
 
-		# set new c_v = k_rho*rho, c_w = k_alpha*alpha + k_beta*beta
-
-		#STEP 5A: # Set Robot Linear and Anglular Velocity
-		# self.robot.set_motor_control(linear velocity (cm), angular velocity (rad))
-		c_w=self.ka*alpha + self.kb*beta
-        # Limit Robot velocity
-		if c_v > 100: c_v = 100
-		if c_v < -100: c_v = -100
+  		#STEP 3: # Fixed Steering Kinematics  
+		self.cw_limit = 50
+		self.c_v_limit = 50
+		self.wheelv_limit = 16
+		# #STEP 3A:  Set Beta
+		# Normalize Angle : Ensure that angles are between -pi and pi
+		if alpha < -math.pi: alpha = alpha + 2*math.pi 
+		if alpha > math.pi: alpha = alpha - 2*math.pi 
+		# Set Beta
+		beta =  -(c_theta - d_theta) - alpha
+		if beta < -math.pi:
+			beta = beta + 2*math.pi 
+			#beta = -2*math.pi - beta
+		if beta > math.pi: beta = beta - 2*math.pi 
+		#STEP 3B: Robot Linear/Anglular Velocity
+		# pcontroller desired robot velocity
+		c_v = self.kp*rho
+        # pcontroller desired velocity
+		c_w = self.ka*alpha + self.kb*beta
+        # Limit Robot Linear velocity
+		if c_v > self.c_v_limit: c_v = self.c_v_limit
+		if c_v < -self.c_v_limit: c_v = -self.c_v_limit
 		# Limit Robot angular velocity
-		if abs(c_w) > 50:
-			if abs(c_w) == 50:
-				c_w = 50
-			else:
-				c_w = -50		
-		self.robot.set_motor_control(c_v, c_w)  # use this command to set robot's speed in local frame
+		if c_w > self.cw_limit: c_w = self.cw_limit
+		if c_w < -self.cw_limit: c_w = -self.cw_limit
 
-
-		#STEP 5B: # WHEEL SPEED 
-		# you need to write code to find the wheel speed for your c_v, and c_w, the program won't calculate it for you.
-		# my fun attempt Deas
-		phi_l =round( (1/3)*c_v +4*c_w ,2 )
-		phi_r =round( (1/3)*c_v -4*c_w ,2 )
+		#STEP 3C: # WHEEL SPEED Kinematics 
+		r= 3 # wheel diameter
+		L = 12 ##24
+		phi_l =round( (1/r)*c_v +(L/r)*c_w ,2 )  # Wheel Anglar Velocity
+		phi_r =round( (1/r)*c_v -(L/r)*c_w ,2 )  # Wheel Anglar Velocity
 		# Limit Wheel Angular Velocity 
-		if phi_l > 16: phi_l =16
-		if phi_l < -16: phi_l = -16
-		if phi_r > 16: phi_r = 16
-		if phi_r < -16: phi_r = -16
+		if phi_l > self.wheelv_limit: phi_l =self.wheelv_limit
+		if phi_l < -self.wheelv_limit: phi_l = -self.wheelv_limit
+		if phi_r > self.wheelv_limit: phi_r = self.wheelv_limit
+		if phi_r < -self.wheelv_limit: phi_r = -self.wheelv_limit
+		# Final robot velocity -- pcontroller + wheel kinematics
+		c_v = ((phi_r*r)/2) +((phi_l*r)/2)
+        # Final robot angular velocity  --  pcontroller + wheel kinematics
+		c_w = -((phi_r*r)/(2*L))+((phi_l*r)/(2*L))
+  		# self.robot.set_motor_control(linear velocity (cm), angular velocity (rad))
+		self.robot.set_motor_control(c_v, c_w)  # use this command to set robot's speed in local frame
 		self.robot.send_wheel_speed(phi_l,phi_r) #unit rad/sw
+		'''''		
+
+
+  		#STEP 4: # Truck Kinematics   .
+		#STEP 4A: # Set Known Values 
+		L = 8	# robot body width is 2L = 16 cm				(Car WIDTH)
+		d = 20	# distance between front and rear axles is 20 cm ( Car LENGTH)
+		r = 3	# wheel radius is 3 cm 
+		steering_angle_outer_limit = 40 # steering angle limit
+		steering_angle_outer_limit = 40 # steering angle limit
+		self.wheelv_limit = 20 # limit wheel speed to 20 rad/s 
+		self.cw_limit = 50
+		self.c_v_limit = 50
+		self.wheelv_limit = 16
+		#STEP 3B: P CONTROLLER DESIRED Robot Linear/Anglular Velocity
+		# Normalize Angle : Ensure that angles are between -pi and pi
+		if alpha < -math.pi: alpha = alpha + 2*math.pi 
+		if alpha > math.pi: alpha = alpha - 2*math.pi 
+		beta =  -(c_theta - d_theta) - alpha		# Set P controller Beta
+		if beta < -math.pi:
+			beta = beta + 2*math.pi 
+			#beta = -2*math.pi - beta
+		if beta > math.pi: beta = beta - 2*math.pi 
+		# pcontroller desired linear velocity
+		c_v = self.kp*rho
+        # pcontroller desired angular velocity
+		c_w = self.ka*alpha + self.kb*beta
+        # Limit Robot Linear velocity
+		if c_v > self.c_v_limit: c_v = self.c_v_limit
+		if c_v < -self.c_v_limit: c_v = -self.c_v_limit
+		# Limit Robot angular velocity
+		if c_w > self.cw_limit: c_w = self.cw_limit
+		if c_w < -self.cw_limit: c_w = -self.cw_limit
 		
+		#STEP 3C: # Ackerman_steering Kinematics
+		# Ackerman_steering (middle steering angle)
+		steering_angle_ideal=math.atan((c_w*d)/c_v)		
+
+		if abs(steering_angle_ideal) >= 0.1:
+			radius_of_rotation = d / math.atan(steering_angle_ideal)	
+			# inner wheel steering angle)
+			steering_angle_inner=math.atan((2*d*math.sin(steering_angle_ideal))/(2*d+math.cos(steering_angle_ideal) - 2*L*math.sin(steering_angle_ideal)))
+			# outer wheel steering angle)
+			steering_angle_outer=math.atan((2*d*math.sin(steering_angle_ideal))/(2*d*math.cos(steering_angle_ideal) + 2*L*math.sin(steering_angle_ideal)))		
+			# Limit outer wheel steering angle 
+			if steering_angle_outer > steering_angle_outer_limit: steering_angle_outer = steering_angle_outer_limit
+			if steering_angle_outer < -steering_angle_outer_limit: steering_angle_outer = -steering_angle_outer_limit
+			#STEP 3C: # WHEEL SPEED Kinematics
+			phi_l =round( (1/r)*c_v - (c_v/d )* math.atan(steering_angle_ideal) ,2 )  # Wheel Anglar Velocity Angular from linear velocity and turining radius
+			phi_r =round( (1/r)*c_v + (c_v/d )*math.atan(steering_angle_ideal) ,2 )  # Wheel Anglar Velocity
+			# Limit Wheel Angular Velocity # wheels can only go forward
+			if phi_l > self.wheelv_limit: phi_l =self.wheelv_limit
+			if phi_l < -self.wheelv_limit: phi_l = 0
+			if phi_r > self.wheelv_limit: phi_r = self.wheelv_limit
+			if phi_r < -self.wheelv_limit: phi_r = 0
+			# Final robot velocity -- pcontroller + wheel kinematics
+			ackerman_c_v = (((phi_r*r)/2) +((phi_l*r)/2) )
+			radius_of_rotation = d / math.atan(steering_angle_ideal)	
+
+			# Final robot angular velocity  --  pcontroller + wheel kinematics
+			ackerman_c_w= ackerman_c_v/radius_of_rotation
+			# self.robot.set_motor_control(linear velocity (cm), angular velocity (rad))
+			self.robot.set_motor_control(ackerman_c_v, ackerman_c_w)  # use this command to set robot's speed in local frame
+			self.robot.send_wheel_speed(phi_l,phi_r) #unit rad/sw   
+   
+		else:
+			radius_of_rotation = 0
+			# inner wheel steering angle)
+			steering_angle_inner = 0
+			# outer wheel steering angle)
+			steering_angle_outer = 0	
+			#STEP 3C: # WHEEL SPEED Kinematics
+			phi_l =round((1/r)*c_v)    # Wheel Anglar Velocity Angular from linear velocity and turining radius
+			phi_r =round( (1/r)*c_v)   # Wheel Anglar Velocity
+			# Limit Wheel Angular Velocity # wheels can only go forward
+			if phi_l > self.wheelv_limit: phi_l =self.wheelv_limit
+			if phi_l < -self.wheelv_limit: phi_l = 0
+			if phi_r > self.wheelv_limit: phi_r = self.wheelv_limit
+			if phi_r < -self.wheelv_limit: phi_r = 0
+			# Final robot velocity -- pcontroller + wheel kinematics
+			ackerman_c_v = ((phi_r*r)/2) +((phi_l*r)/2)
+			radius_of_rotation = 0	
+			# Final robot angular velocity  --  pcontroller + wheel kinematics
+			ackerman_c_w= 0
+			# self.robot.set_motor_control(linear velocity (cm), angular velocity (rad))
+			self.robot.set_motor_control(ackerman_c_v, ackerman_c_w)  # use this command to set robot's speed in local frame
+			self.robot.send_wheel_speed(phi_l,phi_r) #unit rad/sw   
+   
+
+
+
+
 				
   		#STEP 6: # reach way point criteria
 		#you need to modify the reach way point criteria
-		if  abs(d_theta-c_theta) < 1 and abs(rho) < 1 : #you need to modify the reach way point criteria
+		if abs(c_posX - d_posX) < 10 and abs(c_posY - d_posY) < 10 and abs(c_theta - d_theta) < 25:
 			self.robot_destination_reached = True
 		else:
 			self.robot_destination_reached = False
-
 		#--------------------------------------------------------------------------------------------------
 
 		# use the following to log the variables, use [] to bracket all variables you want to store
@@ -153,6 +212,7 @@ class P_controller:
 			if(self.robot.state_des.reach_destination()): 
 				print("final goal reached")
 				self.robot.set_motor_control(.0, .0)  # stop the motor
+				self.robot.send_wheel_speed(.0, .0)
 				return True
 			else:
 				print("one goal point reached, continute to next goal point")

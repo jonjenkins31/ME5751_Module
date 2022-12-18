@@ -29,7 +29,7 @@ class path_planner:
 		# Specify Starting Location (0,0)
 		self.set_start(world_x = 0, world_y = 0)
 		#Set Goal Location in World coordinate ...  Location will be updated to Map coordinate system automaticly
-		self.set_goal(world_x = 160.0, world_y = -107.0, world_theta = .0)
+		self.set_goal(world_x = 0.0, world_y = -230.0, world_theta = .0)
 		#Run Path Planner Function 
 		self.plan_path()
 		# Show Calculated Path
@@ -111,7 +111,8 @@ class path_planner:
 
 		#STEP 1:  Setup/Variables/Arrays
 		#Grids
-		grid= self.costmap.costmap   												# EMPTY = 0 / OCCUPIED = 1000 /Saftey Zone = 500+ / Grids = 500 <--> 0 
+		grid= self.costmap.costmap   												# EMPTY = 0 / OCCUPIED = 1000 /Saftey Zone = 800 / Grids = 800 <--> 0 
+		unoccupied_space_max_value=800
 		self.row_length = len(grid)                              					# Length of the rows
 		self.col_length = len(grid[0])                           					# Length of the columns
 		search_map=np.zeros((self.row_length,self.col_length), dtype=int)           # search_map map ---- THIS MATRIX REPRESENTS THE DISTANCE MAP   0 = occupied / # from occupied space
@@ -140,7 +141,7 @@ class path_planner:
 
 
 
-		if  grid[goal] > 500:									# If Goal Location is within a wall or the saftey zone  then send message to user
+		if  grid[goal] > unoccupied_space_max_value:									# If Goal Location is within a wall or the saftey zone  then send message to user
 			print("Your Selected Goal Location lies in a Wall -- Please Change Goal Location")							# CHECK OUTPUT DURING TESTING
 
 		#SET 2  Reused Brushfire Algorithm used for Breadth First Search
@@ -171,7 +172,7 @@ class path_planner:
 				current_r=  r + i
 				current_c=  c + j
 				next=(current_r, current_c)
-				if 0 <= current_r < self.row_length and 0 <= current_c < self.col_length and grid[next] < 500   :                #requirements for neighbor selection
+				if 0 <= current_r < self.row_length and 0 <= current_c < self.col_length and grid[next] < unoccupied_space_max_value   :                #requirements for neighbor selection
 					search_map[next] =  grid[next]+ bfs[next]+u*heuristic(goal, next)												# Search map cost = Cost from costmap + Distance from starting point + Manhattan Distance from Goal(Heuristic)
 					new_cost = cost_so_far[current] + search_map[next] 															# Cell Cost = Actual Cost + Search Map Grid Cost 
 					nodes_search_counter=nodes_search_counter+1																	# Simple Counter to keep track how many times did the algorithm visit a grid 
